@@ -6,24 +6,143 @@ describe('Case Controllers', function() {
 	var attachmentsService;
 	var securityService;
 	var caseService;
-	var treeViewSelectorUtils;
 	var alertService;
+	var recommendationsService
 	var strataService;
 	var q;
+	var deferred;
+	var fakeStrataService;
+	var account = {"has_group_acls":false,"is_secure":false,"name":"GLOBAL SUPPORT SERVI RED HAT, INC.","number":"540155"};
 
 	beforeEach(angular.mock.module('RedhatAccess.cases'));
 	beforeEach(function () {
+		fakeStrataService = {
+			accounts: {
+				get : function() {
+					deferred = q.defer();
+					
+					return deferred.promise
+				},
+				list : function() {
+					deferred = q.defer();
+
+					return deferred.promise
+				}
+			},
+			cases: {
+				csv : function() {
+					deferred = q.defer();
+					
+					return deferred.promise
+				}
+			}
+		};
+
 		inject(function ($injector, $rootScope, $q) {
 			attachmentsService = $injector.get('AttachmentsService');
 			securityService = $injector.get('securityService');
 			strataService = $injector.get('strataService');
 			alertService = $injector.get('AlertService');
 			caseService = $injector.get('CaseService');
+			recommendationsService = $injector.get('RecommendationsService');
 			mockScope = $rootScope.$new();
 			q = $q;
+
 		});
 	});
 
+
+	it('should have a function for updating case details', inject(function ($controller) {
+
+				$controller('DetailsSection', {
+						$scope: mockScope,
+						CaseService: caseService,
+						strataService: strataService
+				});
+
+				var caseJSON = {};
+				caseService.case.case_number = '1234';
+				expect(mockScope.updateCase).toBeDefined();
+				var deferred = q.defer();
+				spyOn(strataService.cases, 'put').andReturn(deferred.promise);
+		        deferred.resolve();
+		        mockScope.updateCase();
+		        expect(strataService.cases.put).toHaveBeenCalledWith("1234", caseJSON);
+				
+	}));
+
+	it('should have a function for adding comments to case', inject(function ($controller) {
+
+			$controller('AddCommentSection', {
+					$scope: mockScope,
+					CaseService: caseService,
+					strataService: strataService
+			});
+
+			caseService.case.case_number = '1234';
+			caseService.commentText = 'test comment';
+			expect(mockScope.addComment).toBeDefined();
+			var deferred = q.defer();
+			spyOn(strataService.cases.comments, 'post').andReturn(deferred.promise);
+	        deferred.resolve();
+			mockScope.addComment();
+			expect(strataService.cases.comments.post).toHaveBeenCalledWith("1234", 'test comment');			
+
+	
+	}));
+
+	it('should have a function for adding draft comments to case', inject(function ($controller) {
+
+			$controller('AddCommentSection', {
+					$scope: mockScope,
+					CaseService: caseService,
+					strataService: strataService
+			});
+
+			caseService.case.case_number = '1234';
+			caseService.commentText = 'test comment';
+			caseService.draftComment = {};
+			caseService.draftComment.id = '1111';
+			expect(mockScope.addComment).toBeDefined();
+			var deferred = q.defer();
+			spyOn(strataService.cases.comments, 'put').andReturn(deferred.promise);
+	        deferred.resolve();
+			mockScope.addComment();
+			expect(strataService.cases.comments.put).toHaveBeenCalledWith("1234", 'test comment', false, '1111');						
+
+	
+	}));
+
+	it('should have a function for fetching recommendations', inject(function ($controller) {
+
+			$controller('New', {
+					$scope: mockScope,
+					RecommendationsService: recommendationsService,
+					strataService: strataService
+			});
+
+			var newData = {
+		        product: 'Red Hat Enterprise Linux',
+		        version: '6.0',
+		        summary: 'test case summary',
+		        description: 'test case description'		        
+  			};
+
+  			caseService.case.product = 'Red Hat Enterprise Linux';
+	        caseService.case.version = '6.0';
+	        caseService.case.summary = 'test case summary';
+	        caseService.case.description = 'test case description';
+
+  			expect(mockScope.getRecommendations).toBeDefined();
+  			var deferred = q.defer();
+			spyOn(strataService, 'problems').andReturn(deferred.promise);
+	        deferred.resolve();
+			mockScope.getRecommendations();
+			expect(strataService.problems).toHaveBeenCalledWith(newData,5);						
+
+	
+	}));
+	
 	it('should have no file chosen with no description', inject(function ($controller) {
 
 		$controller('AttachLocalFile', {
@@ -44,7 +163,11 @@ describe('Case Controllers', function() {
 			securityService: securityService
 		});
 
+		mockScope.fileName = "test_file";
+		mockScope.fileDescription = "test_description";
+
 		expect(mockScope.clearSelectedFile).toBeDefined();
+		mockScope.clearSelectedFile();
 		expect(mockScope.fileName).toEqual('No file chosen');
 		expect(mockScope.fileDescription).toEqual('');
 	}));
@@ -120,60 +243,93 @@ describe('Case Controllers', function() {
 		expect(mockScope.statuses[2].name).toEqual('Closed');
 	}));
 
-	it('shoud not export all cases as CSV', inject(function ($controller) {
+	it('shoud get error for exporting all cases as CSV', inject(function ($controller) {
 		$controller('ExportCSVButton', {
 			$scope: mockScope,
-			strataService: strataService,
+			strataService: fakeStrataService,
 			AlertService: alertService
 		});
 
-		expect(mockScope.exporting).toEqual(false);
+		expect(mockScope.export).toBeDefined();
+		mockScope.export();
+		deferred.reject();
+		spyOn(fakeStrataService.cases, 'csv').andCallThrough();
+		mockScope.$root.$digest();
 	}));
 
 	it('shoud export all cases as CSV', inject(function ($controller) {
 		$controller('ExportCSVButton', {
 			$scope: mockScope,
-			strataService: strataService,
+			strataService: fakeStrataService,
 			AlertService: alertService
 		});
+
 		expect(mockScope.export).toBeDefined();
-		var deferred = q.defer();
-		spyOn(strataService.cases, 'csv').andReturn(deferred.promise);
-		deferred.resolve();
 		mockScope.export();
-		expect(strataService.cases.csv).toHaveBeenCalledWith();
+		deferred.resolve();
+		spyOn(fakeStrataService.cases, 'csv').andCallThrough();
+		mockScope.$root.$digest();
+		expect(mockScope.exporting).toEqual(false);
 	}));
 
 	it('should select user account', inject(function ($controller) {
 		$controller('AccountSelect', {
 			$scope: mockScope,
-			strataService: strataService,
+			strataService: fakeStrataService,
 			AlertService: alertService,
 			CaseService: caseService
 		});
 
-		expect(mockScope.selectUserAccount).toBeDefined();
-		var deferred = q.defer();
-		spyOn(strataService.accounts, 'list').andReturn(deferred.promise);
-		deferred.resolve();
 		mockScope.selectUserAccount();
-		expect(strataService.accounts.list).toHaveBeenCalledWith();
+		deferred.resolve('540155');
+		spyOn(fakeStrataService.accounts, 'list').andCallThrough();
+		mockScope.$root.$digest();
+		expect(mockScope.loadingAccountNumber).toEqual(false);
+	}));
+
+	it('should get error while selecting user account', inject(function ($controller) {
+		$controller('AccountSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			AlertService: alertService,
+			CaseService: caseService
+		});
+
+		mockScope.selectUserAccount();
+		deferred.reject();
+		spyOn(fakeStrataService.accounts, 'list').andCallThrough();
+		mockScope.$root.$digest();
 	}));
 
 	it('should populate account specific fields', inject(function ($controller) {
 		$controller('AccountSelect', {
 			$scope: mockScope,
-			strataService: strataService,
+			strataService: fakeStrataService,
 			AlertService: alertService,
 			CaseService: caseService
 		});
 
-		expect(mockScope.populateAccountSpecificFields).toBeDefined();
-		caseService.account.number = 1234;
-		var deferred = q.defer();
-		spyOn(strataService.accounts, 'get').andReturn(deferred.promise);
-		deferred.resolve();
+		caseService.account.number = 540155;
+		mockScope.alertInstance = 'Account found'
 		mockScope.populateAccountSpecificFields();
-		expect(strataService.accounts.get).toHaveBeenCalledWith(1234);
+		deferred.resolve(account);
+		spyOn(fakeStrataService.accounts, 'get').andCallThrough();
+		mockScope.$root.$digest();	
+	}));
+
+	it('should not get account specific fields', inject(function ($controller) {
+		$controller('AccountSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			AlertService: alertService,
+			CaseService: caseService
+		});
+
+		caseService.account.number = 540155;
+		mockScope.alertInstance = 'Account Not found'
+		mockScope.populateAccountSpecificFields();
+		deferred.reject();
+		spyOn(fakeStrataService.accounts, 'get').andCallThrough();
+		mockScope.$root.$digest();	
 	}));
 });
