@@ -9,9 +9,14 @@ describe('Case Controllers', function() {
 	var alertService;
 	var recommendationsService
 	var strataService;
+	var groupService;
 	var q;
 	var deferred;
+	var compile;
 	var fakeStrataService;
+	var fakeAttachmentService;
+	var fakeGroupService;
+	var modalInstance;
 	var account = {"has_group_acls":false,"is_secure":false,"name":"GLOBAL SUPPORT SERVI RED HAT, INC.","number":"540155"};
 
 	beforeEach(angular.mock.module('RedhatAccess.cases'));
@@ -34,18 +39,72 @@ describe('Case Controllers', function() {
 					deferred = q.defer();
 					
 					return deferred.promise
+				},
+				get : function(id) {
+					deferred = q
+				}
+			},
+			groups: {
+				create : function(groupName) {
+					deferred = q.defer();
+
+					return deferred.promise
+				}
+			},
+			values: {
+				cases : {
+					severity : function() {
+						deferred = q.defer();
+
+						return deferred.promise
+					},
+					types : function() {
+						deferred = q.defer();
+
+						return deferred.promise
+					}
+				}
+			},
+			products: {
+				list: function() {
+					deferred = q.defer();
+
+					return deferred.promise
 				}
 			}
 		};
 
-		inject(function ($injector, $rootScope, $q) {
+		fakeAttachmentService = {
+			updateAttachments : function(caseId) {
+				deferred = q.defer();
+
+				return deferred.promise
+			}
+		};
+
+		modalInstance = {                    // Create a mock object using spies
+        		close: jasmine.createSpy('modalInstance.close'),
+        		dismiss: jasmine.createSpy('modalInstance.dismiss'),
+        		result: {
+      					then: jasmine.createSpy('modalInstance.result.then')
+    			}
+		};
+
+		fakeGroupService = 	function (fakeStrataService) {
+			this.reloadTable;
+    		this.groupsOnScreen = [];
+		};
+
+		inject(function ($injector, $rootScope, $q, $compile) {
 			attachmentsService = $injector.get('AttachmentsService');
 			securityService = $injector.get('securityService');
 			strataService = $injector.get('strataService');
 			alertService = $injector.get('AlertService');
 			caseService = $injector.get('CaseService');
 			recommendationsService = $injector.get('RecommendationsService');
+			groupService = $injector.get('GroupService');
 			mockScope = $rootScope.$new();
+    		compile = $compile;
 			q = $q;
 
 		});
@@ -142,7 +201,7 @@ describe('Case Controllers', function() {
 
 	
 	}));
-	
+
 	it('should have no file chosen with no description', inject(function ($controller) {
 
 		$controller('AttachLocalFile', {
@@ -179,8 +238,36 @@ describe('Case Controllers', function() {
 			securityService: securityService
 		});
 
-		expect(mockScope.selectFile).toBeDefined();
 
+		var file = {files: [{
+				fileSize: 32323,
+				fileName: 'gfdsfds'
+		}]};
+
+		var fileUploader = [file];
+		spyOn(window, "$").andReturn(fileUploader);
+		var result = $("#fileUploader")[0].files;
+		console.log(JSON.stringify(result));
+
+		expect(mockScope.selectFile).toBeDefined();
+		console.log('fileUploader contents: ' + JSON.stringify($('#fileUploader')[0].files[0]));
+		mockScope.selectFile();
+	}));
+
+	it('should get file on click', inject(function ($controller) {
+		$controller('AttachLocalFile', {
+			$scope: mockScope,
+			AttachmentsService: attachmentsService,
+			securityService: securityService
+		});
+
+		var element = angular.element('<div ><button ng-click="getFile()" ng-disabled="disabled" class="btn">Attach local file</button><div ><input id="fileUploader" type="file" value="/tmp/test.txt" rha-on-change="selectFile" ng-model="file" ng-disabled="enabled"/></div></div><div ><div >{{fileName}}</div></div></div><div ><div ><span></span></div></div><div ><div class="col-xs-12"><input placeholder="File description" ng-model="fileDescription" ng-disabled="disabled" class="form-control"/></div></div><div class="row rha-create-field"><div class="col-xs-12"><button ng-disabled="fileName == NO_FILE_CHOSEN || disabled" style="float: right;" ng-click="addFile(fileUploaderForm)" class="btn">Add</button></div>');
+		var e = compile(element)(mockScope);
+		$("body").append(e);
+		mockScope.$digest();
+
+		expect(mockScope.getFile).toBeDefined();
+		mockScope.getFile();
 	}));
 
 	it('should add file to the list of attachments', inject(function ($controller) {
@@ -331,5 +418,129 @@ describe('Case Controllers', function() {
 		deferred.reject();
 		spyOn(fakeStrataService.accounts, 'get').andCallThrough();
 		mockScope.$root.$digest();	
+	}));
+
+	it('should update attachement in attachment list', inject(function ($controller) {
+		$controller('AttachmentsSection', {
+			$scope: mockScope,
+			AttachmentsService: fakeAttachmentService,
+			CaseService: caseService
+		});
+
+		mockScope.doUpdate();
+		deferred.resolve('540155');
+		spyOn(fakeAttachmentService, 'updateAttachments').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+
+	it('should get an error while updating an attachement in attachment list', inject(function ($controller) {
+		$controller('AttachmentsSection', {
+			$scope: mockScope,
+			AttachmentsService: fakeAttachmentService,
+			CaseService: caseService
+		});
+
+		mockScope.doUpdate();
+		deferred.reject();
+		spyOn(fakeAttachmentService, 'updateAttachments').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+
+	/*it('should create case group', inject(function ($controller) {
+		$controller('CreateGroupModal', {
+			$scope: mockScope,
+			$modalInstance: modalInstance,
+			strataService: fakeStrataService,
+			CaseService: caseService,
+			GroupServie: fakeGroupService
+		});
+
+		mockScope.createGroup();
+		deferred.resolve('Test_Group');
+		spyOn(fakeStrataService.groups, 'create').andCallThrough();
+		spyOn(fakeGroupService).andCallThrough();
+		mockScope.$root.$digest();
+	}));*/
+	
+	it('should select the severity of a case', inject(function ($controller) {
+		$controller('SeveritySelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService,
+			AlertService: alertService
+		});
+
+		deferred.resolve('Urgent');
+		spyOn(fakeStrataService.values.cases, 'severity').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+
+	it('should get an error while selecting  the severity of a case', inject(function ($controller) {
+		$controller('SeveritySelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService,
+			AlertService: alertService
+		});
+
+		deferred.reject();
+		spyOn(fakeStrataService.values.cases, 'severity').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+	
+	it('should select the type of a case', inject(function ($controller) {
+		$controller('TypeSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService,
+			AlertService: alertService
+		});
+
+		deferred.resolve('Other');
+		spyOn(fakeStrataService.values.cases, 'types').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+
+	it('should get an error while selecting the type of a case', inject(function ($controller) {
+		$controller('TypeSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService,
+			AlertService: alertService
+		});
+
+		deferred.reject();
+		spyOn(fakeStrataService.values.cases, 'types').andCallThrough();
+		mockScope.$root.$digest();
+	}));
+
+	it('should select product for case', inject(function ($controller) {
+		$controller('ProductSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService
+		});
+
+		deferred.resolve("Red Hat Enterprise Linux");
+		spyOn(fakeStrataService.products, 'list');
+		mockScope.$root.$digest();
+	}));
+
+	it('should get an error while selecting product for case', inject(function ($controller) {
+		$controller('ProductSelect', {
+			$scope: mockScope,
+			strataService: fakeStrataService,
+			securityService: securityService,
+			CaseService: caseService
+		});
+
+		deferred.reject();
+		spyOn(fakeStrataService.products, 'list');
+		mockScope.$root.$digest();
 	}));
 });
