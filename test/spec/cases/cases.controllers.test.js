@@ -10,12 +10,15 @@ describe('Case Controllers', function() {
 	var recommendationsService
 	var strataService;
 	var groupService;
+	var searchBoxService;
+	var searchCaseService;
 	var q;
 	var deferred;
 	var compile;
 	var fakeStrataService;
 	var fakeAttachmentService;
 	var fakeGroupService;
+	var fakeSearchCaseService;
 	var modalInstance;
 	var account = {"has_group_acls":false,"is_secure":false,"name":"GLOBAL SUPPORT SERVI RED HAT, INC.","number":"540155"};
 
@@ -42,6 +45,8 @@ describe('Case Controllers', function() {
 				},
 				get : function(id) {
 					deferred = q
+
+					return deferred.promise
 				}
 			},
 			groups: {
@@ -70,6 +75,11 @@ describe('Case Controllers', function() {
 					deferred = q.defer();
 
 					return deferred.promise
+				},
+				versions: function(productCode) {
+					deferred = q.defer();
+
+					return deferred.promise
 				}
 			}
 		};
@@ -95,6 +105,14 @@ describe('Case Controllers', function() {
     		this.groupsOnScreen = [];
 		};
 
+		fakeSearchCaseService = {
+			doFilter: function() {
+				deferred = q.defer();
+
+				return deferred.promise
+			}
+		};
+
 		inject(function ($injector, $rootScope, $q, $compile) {
 			attachmentsService = $injector.get('AttachmentsService');
 			securityService = $injector.get('securityService');
@@ -103,6 +121,8 @@ describe('Case Controllers', function() {
 			caseService = $injector.get('CaseService');
 			recommendationsService = $injector.get('RecommendationsService');
 			groupService = $injector.get('GroupService');
+			searchCaseService = $injector.get('SearchCaseService');
+			searchBoxService = $injector.get('SearchBoxService');
 			mockScope = $rootScope.$new();
     		compile = $compile;
 			q = $q;
@@ -542,5 +562,39 @@ describe('Case Controllers', function() {
 		deferred.reject();
 		spyOn(fakeStrataService.products, 'list');
 		mockScope.$root.$digest();
+	}));
+
+	it('should remove local attachment from list of attachment', inject(function ($controller) {
+		$controller('Edit', {
+			$scope: mockScope,
+			AttachmentsService: attachmentsService,
+			strataService: fakeStrataService,
+			CaseService: caseService,
+			RecommendationsService: recommendationsService
+		});
+		
+		var caseJSON = {
+			product: {
+				name: "Redhat"
+			}
+		};
+
+	// Using spyon as below and I am getting error as :TypeError: Cannot read property 'then' of undefined
+
+		/*mockScope.init();
+		deferred.resolve('540155');
+		deferred.resolve('6.0');
+		console.log('Product.name ' + caseJSON.product.name);
+		spyOn(fakeStrataService.cases, 'get').andCallThrough();
+		spyOn(fakeStrataService.products, 'versions').andCallThrough();
+		mockScope.$digest();*/
+
+	//	Using sinon.stub as below and I am getting error as : TypeError: undefined is not a function
+		sinon.stub(fakeStrataService.cases, 'get').returns(caseJSON);
+		sinon.stub(fakeStrataService.products, 'versions').returns('6.0');
+		mockScope.strataService = fakeStrataService;
+		mockScope.$digest();
+		mockScope.init();
+
 	}));
 });
