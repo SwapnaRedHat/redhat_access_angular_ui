@@ -620,19 +620,16 @@ describe('Case Controllers', function() {
 		mockScope.$root.$digest();
 	}));
 
-	it('should remove local attachment from list of attachment', inject(function ($controller) {
+	it('should edit a case ', inject(function ($controller) {
 		$controller('Edit', {
 			$scope: mockScope,
 			$stateParams: stateParams,
 			AttachmentsService: attachmentsService,
 			strataService: fakeStrataService,
 			CaseService: caseService,
-			RecommendationsService: recommendationsService
+			RecommendationsService: recommendationsService,
 		});
 
-	// Using spyon as below and I am getting error as :TypeError: Cannot read property 'then' of undefined
-
-		this.rejectCall = true;
 		mockScope.init();
 		spyOn(fakeStrataService.cases, 'get').andCallThrough();
 		spyOn(fakeStrataService.products, 'versions').andCallThrough();
@@ -640,5 +637,22 @@ describe('Case Controllers', function() {
 		spyOn(fakeStrataService.cases.attachments, 'list').andCallThrough();
 		spyOn(fakeStrataService.cases.comments, 'get').andCallThrough();
 		mockScope.$root.$digest();
+	}));
+
+	it('should edit case derails and attachments', inject(function ($controller) {
+		$controller('CompactEdit', {
+			$scope: mockScope,
+			$stateParams: stateParams,
+			AttachmentsService: attachmentsService,
+			strataService: fakeStrataService,
+			CaseService: caseService
+		});
+
+		mockScope.init();
+		spyOn(fakeStrataService.cases, 'get').andCallThrough();
+		spyOn(fakeStrataService.products, 'versions').andCallThrough();
+		spyOn(fakeStrataService.cases.attachments, 'list').andCallThrough();
+		mockScope.$root.$digest();
+
 	}));
 });
