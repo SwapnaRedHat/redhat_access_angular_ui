@@ -13,13 +13,17 @@ describe('Case Controllers', function() {
 	var searchBoxService;
 	var searchCaseService;
 	var q;
+	var q1;
 	var deferred;
+	var deferred1;
 	var compile;
 	var fakeStrataService;
 	var fakeAttachmentService;
 	var fakeGroupService;
 	var fakeSearchCaseService;
 	var modalInstance;
+	var stateParams;
+	var caseJSON;
 	var account = {"has_group_acls":false,"is_secure":false,"name":"GLOBAL SUPPORT SERVI RED HAT, INC.","number":"540155"};
 
 	beforeEach(angular.mock.module('RedhatAccess.cases'));
@@ -28,6 +32,11 @@ describe('Case Controllers', function() {
 			accounts: {
 				get : function() {
 					deferred = q.defer();
+					if (this.rejectCall) {
+            			deferred.reject();
+          			} else {
+            			deferred.resolve(account);
+          			}
 					
 					return deferred.promise
 				},
@@ -44,9 +53,39 @@ describe('Case Controllers', function() {
 					return deferred.promise
 				},
 				get : function(id) {
-					deferred = q
+					deferred = q.defer();
+					if (this.rejectCall) {
+            			deferred.reject();
+          			} else {
+            			deferred.resolve(caseJSON);
+          			}
 
 					return deferred.promise
+				},
+				attachments : {
+					list : function(id) {
+						deferred = q.defer();
+						if (this.rejectCall) {
+            				deferred.reject();
+          				} else {
+            				deferred.resolve();
+          				}
+					
+						return deferred.promise
+
+					}
+				},
+				comments : {
+					get : function(id) {
+						deferred = q.defer();
+						if (this.rejectCall) {
+            				deferred.reject();
+          				} else {
+            				deferred.resolve();
+          				}
+
+						return deferred.promise
+					}
 				}
 			},
 			groups: {
@@ -77,8 +116,12 @@ describe('Case Controllers', function() {
 					return deferred.promise
 				},
 				versions: function(productCode) {
-					deferred = q.defer();
-
+					deferred = q1.defer();
+					if (this.rejectCall) {
+            			deferred.reject();
+          			} else {
+            			deferred.resolve('6.0');
+          			}
 					return deferred.promise
 				}
 			}
@@ -113,6 +156,18 @@ describe('Case Controllers', function() {
 			}
 		};
 
+		stateParams = {
+
+			id : 540155
+		};
+
+		caseJSON = {
+			product: {
+				name: "Redhat"
+			},
+			account_number: 540155
+		};
+
 		inject(function ($injector, $rootScope, $q, $compile) {
 			attachmentsService = $injector.get('AttachmentsService');
 			securityService = $injector.get('securityService');
@@ -126,6 +181,7 @@ describe('Case Controllers', function() {
 			mockScope = $rootScope.$new();
     		compile = $compile;
 			q = $q;
+			q1 = $q;
 
 		});
 	});
@@ -567,34 +623,22 @@ describe('Case Controllers', function() {
 	it('should remove local attachment from list of attachment', inject(function ($controller) {
 		$controller('Edit', {
 			$scope: mockScope,
+			$stateParams: stateParams,
 			AttachmentsService: attachmentsService,
 			strataService: fakeStrataService,
 			CaseService: caseService,
 			RecommendationsService: recommendationsService
 		});
-		
-		var caseJSON = {
-			product: {
-				name: "Redhat"
-			}
-		};
 
 	// Using spyon as below and I am getting error as :TypeError: Cannot read property 'then' of undefined
 
-		/*mockScope.init();
-		deferred.resolve('540155');
-		deferred.resolve('6.0');
-		console.log('Product.name ' + caseJSON.product.name);
+		this.rejectCall = true;
+		mockScope.init();
 		spyOn(fakeStrataService.cases, 'get').andCallThrough();
 		spyOn(fakeStrataService.products, 'versions').andCallThrough();
-		mockScope.$digest();*/
-
-	//	Using sinon.stub as below and I am getting error as : TypeError: undefined is not a function
-		sinon.stub(fakeStrataService.cases, 'get').returns(caseJSON);
-		sinon.stub(fakeStrataService.products, 'versions').returns('6.0');
-		mockScope.strataService = fakeStrataService;
-		mockScope.$digest();
-		mockScope.init();
-
+		spyOn(fakeStrataService.accounts, 'get').andCallThrough();
+		spyOn(fakeStrataService.cases.attachments, 'list').andCallThrough();
+		spyOn(fakeStrataService.cases.comments, 'get').andCallThrough();
+		mockScope.$root.$digest();
 	}));
 });
