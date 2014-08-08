@@ -13,7 +13,6 @@ describe('Case Controllers', function() {
 	var searchBoxService;
 	var searchCaseService;
 	var q;
-	var q1;
 	var deferred;
 	var deferred1;
 	var compile;
@@ -21,9 +20,11 @@ describe('Case Controllers', function() {
 	var fakeAttachmentService;
 	var fakeGroupService;
 	var fakeSearchCaseService;
+	var fakeCaseService;
 	var modalInstance;
 	var stateParams;
 	var caseJSON;
+	var comments;
 	var account = {"has_group_acls":false,"is_secure":false,"name":"GLOBAL SUPPORT SERVI RED HAT, INC.","number":"540155"};
 
 	beforeEach(angular.mock.module('RedhatAccess.cases'));
@@ -116,7 +117,7 @@ describe('Case Controllers', function() {
 					return deferred.promise
 				},
 				versions: function(productCode) {
-					deferred = q1.defer();
+					deferred = q.defer();
 					if (this.rejectCall) {
             			deferred.reject();
           			} else {
@@ -135,17 +136,25 @@ describe('Case Controllers', function() {
 			}
 		};
 
+		fakeCaseService = {
+			populateComments : function(caseNumber) {
+				deferred = q.defer();
+				if(this.rejectCall) {
+					deferred.reject();
+				} else {
+					deferred.resolve(comments);
+				}
+				return deferred.promise
+			}
+			
+		};
+
 		modalInstance = {                    // Create a mock object using spies
         		close: jasmine.createSpy('modalInstance.close'),
         		dismiss: jasmine.createSpy('modalInstance.dismiss'),
         		result: {
       					then: jasmine.createSpy('modalInstance.result.then')
     			}
-		};
-
-		fakeGroupService = 	function (fakeStrataService) {
-			this.reloadTable;
-    		this.groupsOnScreen = [];
 		};
 
 		fakeSearchCaseService = {
@@ -158,7 +167,7 @@ describe('Case Controllers', function() {
 
 		stateParams = {
 
-			id : 540155
+			id : '\x01312569'
 		};
 
 		caseJSON = {
@@ -167,6 +176,8 @@ describe('Case Controllers', function() {
 			},
 			account_number: 540155
 		};
+
+		comments = ['Test comment'];
 
 		inject(function ($injector, $rootScope, $q, $compile) {
 			attachmentsService = $injector.get('AttachmentsService');
@@ -181,8 +192,6 @@ describe('Case Controllers', function() {
 			mockScope = $rootScope.$new();
     		compile = $compile;
 			q = $q;
-			q1 = $q;
-
 		});
 	});
 
@@ -323,10 +332,8 @@ describe('Case Controllers', function() {
 		var fileUploader = [file];
 		spyOn(window, "$").andReturn(fileUploader);
 		var result = $("#fileUploader")[0].files;
-		console.log(JSON.stringify(result));
 
 		expect(mockScope.selectFile).toBeDefined();
-		console.log('fileUploader contents: ' + JSON.stringify($('#fileUploader')[0].files[0]));
 		mockScope.selectFile();
 	}));
 
@@ -521,22 +528,6 @@ describe('Case Controllers', function() {
 		spyOn(fakeAttachmentService, 'updateAttachments').andCallThrough();
 		mockScope.$root.$digest();
 	}));
-
-	/*it('should create case group', inject(function ($controller) {
-		$controller('CreateGroupModal', {
-			$scope: mockScope,
-			$modalInstance: modalInstance,
-			strataService: fakeStrataService,
-			CaseService: caseService,
-			GroupServie: fakeGroupService
-		});
-
-		mockScope.createGroup();
-		deferred.resolve('Test_Group');
-		spyOn(fakeStrataService.groups, 'create').andCallThrough();
-		spyOn(fakeGroupService).andCallThrough();
-		mockScope.$root.$digest();
-	}));*/
 	
 	it('should select the severity of a case', inject(function ($controller) {
 		$controller('SeveritySelect', {
@@ -653,6 +644,48 @@ describe('Case Controllers', function() {
 		spyOn(fakeStrataService.products, 'versions').andCallThrough();
 		spyOn(fakeStrataService.cases.attachments, 'list').andCallThrough();
 		mockScope.$root.$digest();
+	}));
 
+	it('should select page of comments', inject(function ($controller) {
+		$controller('CommentsSection', {
+			$scope: mockScope,
+			$stateParams: stateParams,
+			CaseService: caseService,
+			strataService: strataService,
+			AlertService: alertService
+		});
+
+		caseService.comments= ['Test comments'];
+		caseService.comments.length= 7;
+		mockScope.selectPage(2);
+		caseService.refreshComments();
+	}));
+
+	it('should request management escalation', inject(function ($controller) {
+		$controller('CommentsSection', {
+			$scope: mockScope,
+			$stateParams: stateParams,
+			CaseService: caseService,
+			strataService: strataService,
+			AlertService: alertService
+		});
+
+		mockScope.requestManagementEscalation();
+	}));
+
+	it('should populate comment', inject(function ($controller) {
+		$controller('CommentsSection', {
+			$scope: mockScope,
+			$stateParams: stateParams,
+			CaseService: fakeCaseService,
+			strataService: strataService,
+			AlertService: alertService
+		});
+
+		spyOn(fakeCaseService, 'populateComments').andCallThrough();
+		fakeCaseService.comments = ['Test comment'];
+		fakeCaseService.comments.length= 9;
+		caseService.populateComments('https://access.devgssci.devlab.phx1.redhat.com/support/cases/01312569');
+		mockScope.$root.$digest();
 	}));
 });
