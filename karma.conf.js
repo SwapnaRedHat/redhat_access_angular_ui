@@ -47,7 +47,8 @@ module.exports = function(config) {
             'app/search/**/*.js',
             'app/cases/**/*.js',
             'app/log_viewer/*.js',
-            'test/spec/**/*.js'
+            'test/mocks/**/*.js',
+            'test/spec/cases/cases.controllers.test.js'            
             //'app/**/*.html'
 
         ],
@@ -101,6 +102,6 @@ module.exports = function(config) {
 
         // Continuous Integration mode
         // if true, it capture browsers, run tests and exit
-        singleRun: false
+        singleRun: true
     });
 };
